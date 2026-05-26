@@ -4,6 +4,8 @@ uniform mat4 P;
 uniform mat4 V;
 uniform mat4 M;
 uniform bool translucent;
+uniform bool highlight; 
+
 
 in vec4 vertex; 
 in vec4 color;
@@ -26,7 +28,11 @@ void main(void){
 
     
     if(translucent){
-        ic = vec4(color.rgb, 0.2*color.a);
+        if(highlight){
+            ic = vec4(1, 0, 0, 0.075);
+        }else{
+            ic = vec4(color.rgb, 0.2*color.a);
+        }
     }else{
         ic = color;
     }

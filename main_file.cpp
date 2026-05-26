@@ -28,12 +28,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "shaderprogram.h"
 #include "board.h"
 #include "sphere.h"
+#include "go_game.h"
 ShaderProgram *sp;
 ShaderProgram *sp2;
 
 GLuint woodTex;
 
-int boardState[20][20] = {0};
+GoGame game;
 int cursorX = 10, cursorZ = 10;
 int currentPlayer = 1;
 
@@ -49,13 +50,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     if (key == GLFW_KEY_RIGHT) cursorX = std::max(1, cursorX - 1);
     if (key == GLFW_KEY_UP)    cursorZ = std::min(19,  cursorZ + 1);
     if (key == GLFW_KEY_DOWN)  cursorZ = std::max(1, cursorZ - 1);
-
-    if (key == GLFW_KEY_SPACE) {
-        if (boardState[cursorX][cursorZ] == 0) {
-            boardState[cursorX][cursorZ] = currentPlayer;
-            currentPlayer = (currentPlayer == 1) ? 2 : 1; // switch turn
-        }
-    }
+    if (key == GLFW_KEY_SPACE) game.placeStone(cursorX, cursorZ);
+    if (key == GLFW_KEY_P)     game.pass();
+    if (key == GLFW_KEY_S)     game.saveToSGF("game.sgf");
+    if (key == GLFW_KEY_L)     game.loadFromSGF("game.sgf");
 }
 
 GLuint readTexture(const char* filename) {
@@ -127,7 +125,7 @@ void drawBoard(glm::mat4 M) {
 
 }
 
-void drawStoneAtPosition(glm::mat4 M, float x, float z, bool isBlack, bool isCursor) {
+void drawStoneAtPosition(glm::mat4 M, float x, float z, bool isBlack, bool isCursor=false) {
 	sp2->use();
 	//conversion from board coordinates to world coordinates
 	float wrldX = -5.4f + ((x-1)*0.6f);
@@ -141,6 +139,12 @@ void drawStoneAtPosition(glm::mat4 M, float x, float z, bool isBlack, bool isCur
 	glEnableVertexAttribArray(sp2->a("normal"));
 	glVertexAttribPointer(sp2->a("normal"), 4, GL_FLOAT, false, 0, sphereVertexNormals);
 	glEnableVertexAttribArray(sp2->a("color"));
+
+	if(isCursor && game.getCell(cursorX, cursorZ) != Player::None) {
+		glUniform1i(sp2->u("highlight"), 1);
+	} else {
+		glUniform1i(sp2->u("highlight"), 0);
+	}
 
     if (isBlack) {
 		glVertexAttribPointer(sp2->a("color"), 4, GL_FLOAT, false, 0, SphereBlack);
@@ -161,7 +165,7 @@ void drawStoneAtPosition(glm::mat4 M, float x, float z, bool isBlack, bool isCur
 }
 
 //Drawing procedure
-void drawScene(GLFWwindow* window, float rotation, int boardState[20][20], int cursorX, int cursorZ, int currentPlayer) {
+void drawScene(GLFWwindow* window, float rotation, int cursorX, int cursorZ, int currentPlayer) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glm::mat4 M = glm::mat4(1.0f);
 	glm::mat4 P = glm::perspective(glm::radians(60.0f), 1.0f, 1.0f, 50.0f);
@@ -176,17 +180,16 @@ void drawScene(GLFWwindow* window, float rotation, int boardState[20][20], int c
 	sp2->use();
 	glUniformMatrix4fv(sp2->u("P"), 1, false, glm::value_ptr(P));
 	glUniformMatrix4fv(sp2->u("V"), 1, false, glm::value_ptr(V));
-	for(int i=1; i<=19; i++) {
-		for(int j=1; j<=19; j++) {
-			if (boardState[i][j] == 1) {
-				drawStoneAtPosition(M, i, j, true, false);
-			} else if (boardState[i][j] == 2) {
-				drawStoneAtPosition(M, i, j, false, false);
-			}
-		}
-	}
-	drawStoneAtPosition(M, cursorX, cursorZ, (currentPlayer == 1), true);
-
+	for (int i = 1; i <= 19; i++)
+    for (int j = 1; j <= 19; j++) {
+        int cell = game.getBoardInt(i, j);
+        if (cell == 1) drawStoneAtPosition(M, i, j, true);
+        if (cell == 2) drawStoneAtPosition(M, i, j, false);
+    }
+	
+	glDisable(GL_DEPTH_TEST);
+	drawStoneAtPosition(M, cursorX, cursorZ, (game.getCurrentPlayer() == Player::Black), true);
+	glEnable(GL_DEPTH_TEST);
 
 	glfwSwapBuffers(window);
 }
@@ -230,7 +233,7 @@ int main(void)
 	while (!glfwWindowShouldClose(window)) //As long as the window shouldnt be closed yet...
 	{		        
 		//rotation+=0.1f;
-		drawScene(window, rotation, boardState, cursorX, cursorZ, currentPlayer); //Execute drawing procedure
+		drawScene(window, rotation, cursorX, cursorZ, currentPlayer); //Execute drawing procedure
 		glfwPollEvents(); //Process callback procedures corresponding to the events that took place up to now
 	}
 	freeOpenGLProgram(window);
