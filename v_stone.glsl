@@ -31,7 +31,7 @@ void main(void){
         if(highlight){
             ic = vec4(1, 0, 0, 0.075);
         }else{
-            ic = vec4(color.rgb, 0.2*color.a);
+            ic = vec4(color.rgb, 0.15);
         }
     }else{
         ic = color;
