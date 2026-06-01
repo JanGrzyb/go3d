@@ -94,7 +94,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	//rotation by 90 degrees J - rotate right, L - rotate left
 	if (key == GLFW_KEY_J)     rotateScene('r');
 	if (key == GLFW_KEY_L)     rotateScene('l');
-	    if (key == GLFW_KEY_I && !camAnimating) {
+	    if (key == GLFW_KEY_I && !camAnimating && cameraMode == 1) {
         // Animate to top-down
         camStartPos = glm::vec3(0.0f, 11.0f, -9.0f);
         camTargetPos = glm::vec3(0.0f, 15.0f, -0.1f);
@@ -104,7 +104,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         camAnimating = true;
         cameraMode = 0;
     }
-    if (key == GLFW_KEY_K && !camAnimating) {
+    if (key == GLFW_KEY_K && !camAnimating && cameraMode == 0) {
         // Animate to tilted
         camStartPos = glm::vec3(0.0f, 15.0f, -0.1f);
         camTargetPos = glm::vec3(0.0f, 11.0f, -9.0f);
@@ -150,9 +150,9 @@ void initOpenGLProgram(GLFWwindow* window) {
 	sp2=new ShaderProgram("v_stone.glsl", NULL, "f_stone.glsl");
 	sp3=new ShaderProgram("v_floor.glsl", NULL, "f_floor.glsl");
 	woodTex = readTexture("oak_veneer_01_diff_4k.png");
-	floorDiffTex = readTexture("stone_tiles_diff_4k.png");
-	floorDisplTex = readTexture("stone_tiles_disp_4k.png");
-	floorNormalTex = readTexture("stone_tiles_nor_gl_4k.png");
+	floorDiffTex = readTexture("monastery_stone_floor_diff_4k.png");
+	floorDisplTex = readTexture("monastery_stone_floor_disp_4k.png");
+	floorNormalTex = readTexture("monastery_stone_floor_nor_gl_4k.png");
 	//************Place any code here that needs to be executed once, at the program start************
 }
 
@@ -173,6 +173,12 @@ void drawFloor(glm::mat4 M) {
 	glUniformMatrix4fv(sp3->u("M"), 1, false, glm::value_ptr(M));
 	glEnableVertexAttribArray(sp3->a("vertex"));
 	glVertexAttribPointer(sp3->a("vertex"), 4, GL_FLOAT, false, 0, boardVertices);
+	glEnableVertexAttribArray(sp3->a("c1"));
+	glVertexAttribPointer(sp3->a("c1"), 4, GL_FLOAT, false, 0, floorC1);
+	glEnableVertexAttribArray(sp3->a("c2"));
+	glVertexAttribPointer(sp3->a("c2"), 4, GL_FLOAT, false, 0, floorC2);
+	glEnableVertexAttribArray(sp3->a("c3"));
+	glVertexAttribPointer(sp3->a("c3"), 4, GL_FLOAT, false, 0, floorC3);
 	glEnableVertexAttribArray(sp3->a("normal"));
 	glVertexAttribPointer(sp3->a("normal"), 4, GL_FLOAT, false, 0, boardNormals);
 	glEnableVertexAttribArray(sp3->a("texCoord"));
@@ -200,7 +206,9 @@ void drawFloor(glm::mat4 M) {
 	glDrawArrays(GL_TRIANGLES, 0, 6); // top face only
 
 
-
+	glDisableVertexAttribArray(sp3->a("c1"));
+	glDisableVertexAttribArray(sp3->a("c2"));
+	glDisableVertexAttribArray(sp3->a("c3"));
 	glDisableVertexAttribArray(sp3->a("vertex"));
 	glDisableVertexAttribArray(sp3->a("normal"));
 	glDisableVertexAttribArray(sp3->a("texCoord"));

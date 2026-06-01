@@ -7,48 +7,32 @@ uniform mat4 M;
 in vec4 vertex;
 in vec4 normal;
 in vec2 texCoord;
+in vec4 c1;
+in vec4 c2;
+in vec4 c3;
 
-out vec3 l1_tangent;
-out vec3 l2_tangent;
-out vec3 v_tangent;
+
+out vec4 l1;
+out vec4 l2;
+out vec4 v;
+out vec4 n;
 out vec2 tc;
 
+
 void main(void) {
-    // Object‑space tangent basis (the floor is a flat XY plane)
-    vec3 objTangent  = vec3(1.0, 0.0, 0.0);
-    vec3 objBitangent = vec3(0.0, 0.0, 1.0);
-    vec3 objNormal   = vec3(0.0, 1.0, 0.0);
+    mat4 invTBN = mat4(vec4(1,0,0,0), vec4(0,0,1,0), vec4(0,1,0,0), vec4(0,0,0,1));
 
-    // Transform to eye space using the normal matrix (rotation+scale)
-    mat3 normalMatrix = transpose(inverse(mat3(M)));
-    vec3 eyeNormal    = normalize(V * vec4(normalMatrix * objNormal, 0.0)).xyz;
-    vec3 eyeTangent   = normalize(V * vec4(normalMatrix * objTangent, 0.0)).xyz;
-    vec3 eyeBitangent = normalize(V * vec4(normalMatrix * objBitangent, 0.0)).xyz;
+    //mat4 invTBN = mat4(c1, c2, c3, vec4(0,0,0,1));
 
-    // TBN matrix: from tangent space to eye space
-    mat3 TBN = mat3(eyeTangent, eyeBitangent, eyeNormal);
+    vec4 lp1 = vec4(0, 9, -15, 1); //light position in world space
+    vec4 lp2 = vec4(0, 9, 15, 1);
 
-    // Vertex position in eye space
-    vec3 eyePos = (V * M * vertex).xyz;
-
-    // View direction (from vertex to camera) in eye space
-    vec3 eyeViewDir = normalize(-eyePos);
-
-    // Light positions in world space (same as in your original shader)
-    vec4 lp1_world = vec4(0.0, 9.0, -15.0, 1.0);
-    vec4 lp2_world = vec4(0.0, 9.0,  15.0, 1.0);
-
-    // Light directions in eye space
-    vec3 lp1_eye = (V * lp1_world).xyz;
-    vec3 lp2_eye = (V * lp2_world).xyz;
-    vec3 eyeLightDir1 = normalize(lp1_eye - eyePos);
-    vec3 eyeLightDir2 = normalize(lp2_eye - eyePos);
-
-    // Transform to tangent space
-    mat3 TBNt = transpose(TBN);      // eye space → tangent space
-    v_tangent   = TBNt * eyeViewDir;
-    l1_tangent  = TBNt * eyeLightDir1;
-    l2_tangent  = TBNt * eyeLightDir2;
+    l1 = normalize(invTBN*inverse(M)*(lp1-M*vertex)); //vector towards light in eye space
+    l2 = normalize(invTBN*inverse(M)*(lp2-M*vertex));
+    v = normalize(invTBN*inverse(V*M)*vec4(0,0,0,1) - (invTBN*vertex));
+    n = vec4(0,0,1,0);
+    
+    
 
     tc = texCoord;
     gl_Position = P * V * M * vertex;

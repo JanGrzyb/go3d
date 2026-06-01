@@ -4,47 +4,56 @@ uniform sampler2D diffTex;
 uniform sampler2D displTex;
 uniform sampler2D normalTex;
 
-uniform float parallaxScale = 0.05; 
-uniform float parallaxBias  = 0;
-
 out vec4 pixelColor;
 
-in vec3 l1_tangent;
-in vec3 l2_tangent;
-in vec3 v_tangent;
+in vec4 l1;
+in vec4 l2;
+in vec4 v;
 in vec2 tc;
+in vec4 n;
 
-vec4 phong(vec3 mn, vec3 ml, vec3 mv, vec4 kd, vec4 ks) {
-    vec3 mr = reflect(-ml, mn);
+vec2 parallax(vec4 v, vec2 t, float h, float s){
+    vec2 ti = -v.xy/s;
+    float hi = -v.z/s;
+
+    vec2 tc = t;
+    float hc=h;
+    float ht = texture(displTex, tc).r*h;
+
+    if (v.z<=0) discard;
+
+    if(v.z>0){
+        while(hc>ht){
+            tc = tc+ti;
+            hc = hc+hi;
+            ht = texture(displTex, tc).r*h;
+        }
+    }
+    return tc;
+}
+
+vec4 phong(vec4 mn, vec4 ml, vec4 mv, vec4 kd, vec4 ks) {
+    vec4  mr = reflect(-ml, mn);
     float nl = clamp(dot(mn, ml), 0.0, 1.0);
     float rv = pow(clamp(dot(mr, mv), 0.0, 1.0), 30.0);
     return vec4(kd.rgb * nl, kd.a) + vec4(ks.rgb * rv, 0.0);
 }
 
 void main(void) {
-    // Sample height (red channel) – ensure your displacement map is a true height map
-    float height = texture(displTex, tc).r;
+    vec4 mv = normalize(v);
+    vec2 tn = parallax(mv, tc, 1.0, 120.0f);
 
-    // Parallax offset using tangent‑space view direction
-    vec2 offset = (v_tangent.xy / v_tangent.z) * (height * parallaxScale + parallaxBias);
-    vec2 newTC = tc + offset;
+    vec4 ml1 = normalize(l1);
+    vec4 ml2 = normalize(l2);
+    vec4 mn = normalize(vec4(texture(normalTex, tn).rgb*2-1, 0));
+    
 
-    // (Optional) Clamp to avoid ugly border artifacts
-    // newTC = clamp(newTC, 0.0, 6.0);  // because your floor has 6x6 texture repeats
-
-    vec4 texColor = texture(diffTex, newTC);
-    vec3 normalTS = texture(normalTex, newTC).rgb * 2.0 - 1.0;
-    vec3 mn = normalize(normalTS);
-
-    vec3 mv = normalize(v_tangent);
-    vec3 ml1 = normalize(l1_tangent);
-    vec3 ml2 = normalize(l2_tangent);
-
-    vec4 kd = texColor;
-    vec4 ks = texColor / 2.0;
+    vec4 kd = texture(diffTex, tn);
+    vec4 ks = vec4(0.3f,0.3f,0.3f,1);
 
     vec4 contrib1 = phong(mn, ml1, mv, kd, ks);
     vec4 contrib2 = phong(mn, ml2, mv, kd, ks);
 
     pixelColor = clamp(contrib1 + contrib2, 0.0, 1.0);
+    
 }
