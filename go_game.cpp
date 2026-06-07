@@ -112,6 +112,7 @@ bool GoGame::wouldBeSuicide(int x, int z, Player p) const {
 // ── Move validation & placement ──────────────────────────────────────────────
 
 bool GoGame::isValidMove(int x, int z) const {
+    if (isGameOver()) return false;
     if (x < 1 || x > SIZE || z < 1 || z > SIZE) return false;
     if (board[x][z] != Player::None) return false;
     if (x == koX && z == koZ) return false;        // ko rule

@@ -3,6 +3,7 @@
 uniform mat4 P;
 uniform mat4 V;
 uniform mat4 M;
+uniform mat4 lightRotation;
 
 in vec4 vertex;
 in vec4 normal;
@@ -24,8 +25,8 @@ void main(void) {
 
     //mat4 invTBN = mat4(c1, c2, c3, vec4(0,0,0,1));
 
-    vec4 lp1 = vec4(0, 9, -15, 1); //light position in world space
-    vec4 lp2 = vec4(0, 9, 15, 1);
+    vec4 lp1 = lightRotation * vec4(0, 9, -15, 1); //light position in world space
+    vec4 lp2 = lightRotation * vec4(0, 9, 15, 1);
 
     l1 = normalize(invTBN*inverse(M)*(lp1-M*vertex)); //vector towards light in eye space
     l2 = normalize(invTBN*inverse(M)*(lp2-M*vertex));

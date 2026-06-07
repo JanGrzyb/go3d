@@ -45,7 +45,6 @@ int currentPlayer = 1;
 
 int cameraMode = 1; // 1 - tilted, 0 - top-down
 glm::vec3 camStartPos, camTargetPos, camCurrentPos;
-glm::vec3 camStartUp, camTargetUp, camCurrentUp;
 float camAnimTime = 0.0f;
 float camAnimDuration = 0.7f;
 bool camAnimating = false;
@@ -62,6 +61,10 @@ std::vector<int> arrowKeyDirections = {GLFW_KEY_LEFT, GLFW_KEY_RIGHT, GLFW_KEY_U
 //Error processing callback procedure
 void error_callback(int error, const char* description) {
 	fputs(description, stderr);
+}
+
+void window_size_callback(GLFWwindow* window, int width, int height) {
+	glViewport(0, 0, width, height);
 }
 
 void rotateScene(char direction) {
@@ -98,8 +101,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         // Animate to top-down
         camStartPos = glm::vec3(0.0f, 11.0f, -9.0f);
         camTargetPos = glm::vec3(0.0f, 15.0f, -0.1f);
-        camStartUp  = glm::vec3(0.0f, 1.0f, 0.0f);
-        camTargetUp = glm::vec3(0.0f, 1.0f, 0.0f); 
         camAnimTime = 0.0f;
         camAnimating = true;
         cameraMode = 0;
@@ -108,8 +109,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         // Animate to tilted
         camStartPos = glm::vec3(0.0f, 15.0f, -0.1f);
         camTargetPos = glm::vec3(0.0f, 11.0f, -9.0f);
-        camStartUp  = glm::vec3(0.0f, 1.0f, 0.0f);
-        camTargetUp = glm::vec3(0.0f, 1.0f, 0.0f);
         camAnimTime = 0.0f;
         camAnimating = true;
         cameraMode = 1;
@@ -283,24 +282,33 @@ void drawStoneAtPosition(glm::mat4 M, float x, float z, bool isBlack, bool isCur
 //Drawing procedure
 void drawScene(GLFWwindow* window, float rotation, int cursorX, int cursorZ, int currentPlayer) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	int width, height;
+	glfwGetWindowSize(window, &width, &height);
+	float aspect = width / (float)height;
+
 	glm::mat4 M = glm::mat4(1.0f);
-	glm::mat4 P = glm::perspective(glm::radians(60.0f), 1.0f, 1.0f, 50.0f);
-	glm::mat4 V = glm::lookAt(camCurrentPos, glm::vec3(0.0f, 0.0f, 0.0f), camCurrentUp);
+	glm::mat4 P = glm::perspective(glm::radians(60.0f), aspect, 1.0f, 50.0f);
+	glm::mat4 V = glm::lookAt(camCurrentPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	M = glm::rotate(M, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	sp3->use();
 	glUniformMatrix4fv(sp3->u("P"), 1, false, glm::value_ptr(P));
 	glUniformMatrix4fv(sp3->u("V"), 1, false, glm::value_ptr(V));
+	glUniformMatrix4fv(sp3->u("lightRotation"), 1, false, glm::value_ptr(M));
 	drawFloor(M);
 
 	sp->use();
 	glUniformMatrix4fv(sp->u("P"), 1, false, glm::value_ptr(P));
 	glUniformMatrix4fv(sp->u("V"), 1, false, glm::value_ptr(V));
+	glUniformMatrix4fv(sp->u("lightRotation"), 1, false, glm::value_ptr(M));
+
 	drawBoard(M);
 
 	sp2->use();
 	glUniformMatrix4fv(sp2->u("P"), 1, false, glm::value_ptr(P));
 	glUniformMatrix4fv(sp2->u("V"), 1, false, glm::value_ptr(V));
+	glUniformMatrix4fv(sp2->u("lightRotation"), 1, false, glm::value_ptr(M));
 	for (int i = 1; i <= 19; i++)
     for (int j = 1; j <= 19; j++) {
         int cell = game.getBoardInt(i, j);
@@ -308,9 +316,11 @@ void drawScene(GLFWwindow* window, float rotation, int cursorX, int cursorZ, int
         if (cell == 2) drawStoneAtPosition(M, i, j, false);
     }
 	
-	glDisable(GL_DEPTH_TEST);
-	drawStoneAtPosition(M, cursorX, cursorZ, (game.getCurrentPlayer() == Player::Black), true);
-	glEnable(GL_DEPTH_TEST);
+	if(!game.isGameOver()){
+		glDisable(GL_DEPTH_TEST);
+		drawStoneAtPosition(M, cursorX, cursorZ, (game.getCurrentPlayer() == Player::Black), true);
+		glEnable(GL_DEPTH_TEST);
+	}
 
 	glfwSwapBuffers(window);
 }
@@ -347,6 +357,8 @@ int main(void)
 	initOpenGLProgram(window); //Call initialization procedure
 
 	glfwSetKeyCallback(window, key_callback);
+    glfwSetWindowSizeCallback(window, window_size_callback);
+
 
 	double lastTime = glfwGetTime();
 	//Main application loop
@@ -375,10 +387,8 @@ int main(void)
         	}
         	float ease = 0.5f - 0.5f * cos(PI * t);
         	camCurrentPos = glm::mix(camStartPos, camTargetPos, ease);
-        	camCurrentUp  = glm::mix(camStartUp,  camTargetUp,  ease);
     	} else {
         	camCurrentPos = (cameraMode == 1) ? glm::vec3(0.0f, 11.0f, -9.0f) : glm::vec3(0.0f, 15.0f, -0.1f);
-        	camCurrentUp  = glm::vec3(0.0f, 1.0f, 0.0f);
     }
 
 		drawScene(window, rotation, cursorX, cursorZ, currentPlayer); //Execute drawing procedure
